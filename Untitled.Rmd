@@ -10,25 +10,185 @@ knitr::opts_chunk$set(echo = TRUE)
 library(here)
 library(janitor)
 library(tidyverse)
-library(ggplot2)
+library(ggpubr) # for some graphics applications
+library(car) # for some ANOVA and regression tests 
 ```
 
 
-```{r}
+# Part 2 : Plots and ANOVA assumptions 
+```{r, message = FALSE}
 penguins <- read_csv(here("data", "penguins.csv"))
 ```
 
 
+## Make a subset of penguins data
+```{r}
+penguins_male <- penguins %>% 
+  filter(sex == "male") %>% # filtering out observations
+  select(species, body_mass_g) # selecting columns or variable 
+```
+
+
+# qq Plots 
+
+```{r}
+# qqplots for each species of penguin (data)
+
+adelie <- penguins_male %>% 
+  filter(species == "Adelie")
+
+gentoo <- penguins_male %>% 
+  filter(species == "Gentoo")
+
+chinstrap <- penguins_male %>% 
+  filter(species == "Chinstrap")
+
+
+```
+
+
+```{r}
+qq_adelie <- ggplot(adelie, aes(sample = body_mass_g)) + coord_cartesian(ylim = c(3000, 6500)) + 
+  geom_qq() + stat_qq() +stat_qq_line() + theme_bw() + labs(title = "Adelie") 
+
+qq_adelie # normal
+
+qq_gentoo <- ggplot(gentoo, aes(sample = body_mass_g))+ coord_cartesian(ylim = c(3000, 6500)) + 
+  geom_qq() + stat_qq() +stat_qq_line() + theme_bw() + labs(title = "Gentoo") 
+
+qq_gentoo # normal
+
+qq_chinstrap <- ggplot(chinstrap, aes(sample = body_mass_g))+ coord_cartesian(ylim = c(3000, 6500)) + 
+  geom_qq() + stat_qq() +stat_qq_line() + theme_bw() + labs(title = "Chinstrap") 
+
+qq_chinstrap # normal
+```
+
+
+## combine figures 
+
+```{r}
+# as a row of figures 
+
+ggarrange(qq_adelie, qq_chinstrap, qq_gentoo, 
+          labels = c("A", "B", "C"), ncol = 3, nrow = 1)
+```
+
+
+```{r}
+# as a column of figures 
+
+ggarrange(qq_adelie, qq_chinstrap, qq_gentoo, 
+          labels = c("A", "B", "C"), ncol = 1, nrow = 3)
+```
+
+
+## Statistical test for normality 
+
+```{r}
+shapiro.test(adelie$body_mass_g) # we fail to reject the null, accept that its normally distributed 
+
+shapiro.test(chinstrap$body_mass_g)
+
+shapiro.test(gentoo$body_mass_g)
+```
+
+
+## test of equal variances 
+
+```{r}
+# levene's test 
+
+leveneTest(body_mass_g~as.factor(species), data = penguins_male) # fail to reject null, null is that variances are equall 
+```
+
+
+# Part 3A ANOVA 
+
+```{r}
+m_penguin_species_results <- aov(body_mass_g~as.factor(species), data = penguins_male)
+
+summary(m_penguin_species_results) # reject the null in favor of alternative, alternative is that at least one mean in species of penguins body mass that is different from the rest 
+```
+
+
+
+# Part 3b: Multiple Comparisons 
+
+```{r}
+TukeyHSD(m_penguin_species_results) # chinstrap-adelie confidence interval passes through 0 so difference is not significant, p value about .05 also shows no significant difference. fail to reject the null that they are different 
+```
+
+
+# Part 3c: plotting ANOVA for publication 
+
+```{r}
+# mean plots
+ggline(penguins_male, x = "species", y = "body_mass_g", main = "Means and 95% CI for three species of penguins", add=c("mean_ci"), color = "dark grey", ylab = "Body Mass (g)", xlab = "Species", point.color = "red")
+```
 
 
 
 
 
+# Part 4: non parametric tests 
+good for skewed data 
+violation of normality 
+very different variances 
+ANOVA should be used over non parametric tests when available because they are more sensitive to true differences 
+```{r}
+kruskal.test(body_mass_g~as.factor(species), data = penguins_male)
+```
+
+## pairwise comparisons using non parametric approach 
+```{r}
+pairwise.wilcox.test(penguins_male$body_mass_g, penguins_male$species, p.adjust.method = "bonferroni") # p values show differences between adelie and gentoo and chinstrap and gentoo, but no difference between adelie and chinstrap 
+# bonferroni adjustment reduces chance of type 1 error but adjusting p value by number of groups being compared 
+```
+
+## plot with boxplots 
+```{r}
+ggboxplot(penguins_male, x = "species", y = "body_mass_g") #thick line shows median of data 
+```
+
+
+## Linear Regression 
+```{r, message=FALSE}
+trees_mod <- read_csv(here("data", "trees_mod.csv"))
+
+trees <- trees_mod %>%  clean_names()
+
+head(trees)
+```
 
 
 
+```{r}
+tree_scatter <- ggplot(trees, aes(x=height, y=girth))+ geom_point()+ 
+  labs(x = "Height (ft)", y = "DBH (in)") +
+  xlim(60,90) +ylim(0,25) + theme_bw()
+
+tree_scatter
+```
 
 
+## fit a linear moel 
+
+```{r}
+model_1 <- lm(girth~height, data = trees)
+model_1 # DBH = -6.2 +.2(height)
+summary(model_1)
+```
+
+## plot the linear model
+```{r}
+tree_scatter <- ggplot(trees, aes(x=height, y=girth))+ geom_point()+ 
+  labs(x = "Height (ft)", y = "DBH (in)") +
+  xlim(60,90) +ylim(0,25) +geom_smooth(method = "lm")+
+  theme_bw()
+
+tree_scatter
+```
 
 
 
