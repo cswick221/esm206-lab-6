@@ -1,0 +1,37 @@
+---
+title: "Lab 6"
+author: "C.Swick"
+date: "2022-11-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(janitor)
+library(tidyverse)
+library(ggplot2)
+```
+
+
+```{r}
+penguins <- read_csv(here("data", "penguins.csv"))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
